@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Settings, Activity, LogOut, Code, Play, Trash2, Edit3, Briefcase, MapPin, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, User, Mail, Settings, Activity, LogOut, Code, Play, Trash2, Edit3, Briefcase, MapPin, Link as LinkIcon, Key, Loader2, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function UserProfile() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateApiKey } = useAuth();
   const navigate = useNavigate();
   const [customSpiders, setCustomSpiders] = useState<any[]>([]);
+  const [apiKey, setApiKey] = useState(user?.apiKey || '');
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  useEffect(() => {
+    if (user?.apiKey) {
+      setApiKey(user.apiKey);
+    }
+  }, [user?.apiKey]);
 
   useEffect(() => {
     const saved = localStorage.getItem('scrapersai_custom_spiders');
@@ -26,6 +36,21 @@ export default function UserProfile() {
   const handleLogout = async () => {
     await logout();
     navigate('/');
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!user) return;
+    try {
+      setIsSavingKey(true);
+      await updateApiKey(apiKey);
+      toast.success('API Key Saved', {
+        description: 'Your global API key has been updated successfully.',
+      });
+    } catch (error) {
+      toast.error('Error saving API key');
+    } finally {
+      setIsSavingKey(false);
+    }
   };
 
   if (!user) {
@@ -127,6 +152,54 @@ export default function UserProfile() {
                   <span className="flex items-center gap-1"><LinkIcon className="w-4 h-4" /> <a href="#" className="text-indigo-600 dark:text-indigo-400 hover:underline">Contact info</a></span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* API Configuration Section */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-6 transition-colors duration-300">
+            <div className="flex items-center gap-2 mb-4">
+              <Key className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">API Configuration</h2>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              Set your global API key here. This key will be used by default for all scrapers you run.
+            </p>
+            
+            <div className="max-w-md space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  Global API Key
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input 
+                      type={showApiKey ? "text" : "password"}
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="Enter your API key"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    >
+                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <button 
+                    onClick={handleSaveApiKey}
+                    disabled={isSavingKey || apiKey === user.apiKey}
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-xl font-semibold transition-colors text-sm flex items-center gap-2"
+                  >
+                    {isSavingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    Save
+                  </button>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 italic">
+                * Your API key is stored securely and never shared with third parties.
+              </p>
             </div>
           </div>
 

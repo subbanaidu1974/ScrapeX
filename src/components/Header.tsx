@@ -4,6 +4,7 @@ import { ChevronDown, Star, Bell, LogOut, Check, Menu, Sun, Moon, Coffee, Waves,
 import { useAuth } from '../contexts/AuthContext';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useTheme, Mode } from '../contexts/ThemeContext';
+import AuthModal from './AuthModal';
 
 const MENU_ITEMS = {
   Product: ['ScrapeX Store', 'Integrations', 'Proxy', 'MCP', 'Crawlee'],
@@ -21,7 +22,7 @@ const MOCK_NOTIFICATIONS = [
 ];
 
 export default function Header() {
-  const { user, login, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { toggle } = useSidebar();
   const { mode, setMode, cycleMode } = useTheme();
   const navigate = useNavigate();
@@ -29,6 +30,8 @@ export default function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
   const notificationsRef = useRef<HTMLDivElement>(null);
   const modeSelectorRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +60,11 @@ export default function Header() {
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(n => ({ ...n, unread: false })));
+  };
+
+  const handleAuthClick = (mode: 'login' | 'signup') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
   };
 
   const CurrentIcon = modes.find(m => m.id === mode)?.icon || Sun;
@@ -276,15 +284,20 @@ export default function Header() {
           </div>
         ) : (
           <>
-            <button onClick={login} className="text-sm font-medium text-text-muted hover:text-text-main transition-colors">
+            <button onClick={() => handleAuthClick('login')} className="text-sm font-medium text-text-muted hover:text-text-main transition-colors">
               Log in
             </button>
-            <button onClick={login} className="bg-primary hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">
+            <button onClick={() => handleAuthClick('signup')} className="bg-primary hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-primary/20">
               Get started
             </button>
           </>
         )}
       </div>
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        initialMode={authModalMode} 
+      />
     </header>
   );
 }

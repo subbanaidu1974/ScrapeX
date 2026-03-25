@@ -45,6 +45,7 @@ import Footer from './components/Footer';
 import { AuthProvider } from './contexts/AuthContext';
 import { SidebarProvider } from './contexts/SidebarContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { Toaster } from 'sonner';
 
 function App() {
   return (
@@ -100,6 +101,7 @@ function App() {
               </div>
               <Footer />
             </div>
+            <Toaster position="top-center" richColors />
           </Router>
         </SidebarProvider>
       </AuthProvider>

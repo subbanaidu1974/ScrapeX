@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Play, Code, CheckCircle2, Clock, Shield, BookOpen, Heart, Twitter, Linkedin, Copy, Check, Share2, MessageSquare, ThumbsUp, MoreHorizontal, Bookmark } from 'lucide-react';
+import { ArrowLeft, Star, Play, Code, CheckCircle2, Clock, Shield, BookOpen, Heart, Twitter, Linkedin, Copy, Check, Share2, MessageSquare, ThumbsUp, MoreHorizontal, Bookmark, Loader2, Eye, EyeOff } from 'lucide-react';
 import { SPIDERS } from '../data';
 import { trackEvent } from '../utils/analytics';
+import { toast } from 'sonner';
+
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SpiderDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, updateApiKey } = useAuth();
   const [spider, setSpider] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [customReviews, setCustomReviews] = useState<any[]>([]);
@@ -17,6 +21,16 @@ export default function SpiderDetails() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeSnippetTab, setActiveSnippetTab] = useState('nodejs');
   const [isCopied, setIsCopied] = useState(false);
+  const [apiKey, setApiKey] = useState(user?.apiKey || '');
+  const [apiKeyError, setApiKeyError] = useState(false);
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  useEffect(() => {
+    if (user?.apiKey) {
+      setApiKey(user.apiKey);
+    }
+  }, [user?.apiKey]);
 
   useEffect(() => {
     // Load custom reviews from localStorage
@@ -139,6 +153,34 @@ export default function SpiderDetails() {
     }
   };
 
+  const handleRunScraper = async (e: React.MouseEvent) => {
+    if (!apiKey.trim()) {
+      e.preventDefault();
+      setApiKeyError(true);
+      toast.error('API Key Required', {
+        description: 'Please enter your API key to run this scraper.',
+      });
+      
+      // Focus the main input if it exists
+      const mainInput = document.getElementById('main-api-key-input');
+      if (mainInput) {
+        mainInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        mainInput.focus();
+      } else {
+        // Fallback to sidebar input
+        const sidebarElement = document.getElementById('api-key-input');
+        if (sidebarElement) {
+          sidebarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          sidebarElement.focus();
+        }
+      }
+      return;
+    }
+
+    trackEvent('run_scraper_clicked', { spiderId: spider.id, spiderTitle: spider.title });
+    navigate(`/run/${spider.id}`, { state: { apiKey } });
+  };
+
   const shareUrl = window.location.href;
   const shareTitle = `Check out ${spider.title} on ScrapersAI!`;
 
@@ -225,23 +267,73 @@ export default function SpiderDetails() {
                 </div>
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link 
-                  to={`/run/${spider.id}`} 
-                  onClick={() => trackEvent('run_scraper_clicked', { spiderId: spider.id, spiderTitle: spider.title })}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-1.5 rounded-full font-semibold transition-colors flex items-center gap-2"
-                >
-                  <Play className="w-4 h-4 fill-current" /> Run Scraper
-                </Link>
-                <button 
-                  onClick={handleClone}
-                  className="border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 px-5 py-1.5 rounded-full font-semibold transition-colors flex items-center gap-2"
-                >
-                  <Copy className="w-4 h-4" /> Clone
-                </button>
-                <button className="border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 text-slate-500 dark:text-slate-400 px-5 py-1.5 rounded-full font-semibold transition-colors flex items-center gap-2">
-                  <MoreHorizontal className="w-4 h-4" /> More
-                </button>
+              <div className="mt-6 space-y-4">
+                <div className="max-w-md">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">API Key</label>
+                    {user && apiKey && apiKey !== user.apiKey && (
+                      <button 
+                        onClick={async () => {
+                          try {
+                            setIsSavingKey(true);
+                            await updateApiKey(apiKey);
+                            toast.success('API Key Saved', {
+                              description: 'Your global API key has been updated successfully.',
+                            });
+                          } catch (error) {
+                            toast.error('Error saving API key');
+                          } finally {
+                            setIsSavingKey(false);
+                          }
+                        }}
+                        disabled={isSavingKey}
+                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                      >
+                        {isSavingKey ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                        Save to profile
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input 
+                      id="main-api-key-input"
+                      type={showApiKey ? "text" : "password"}
+                      value={apiKey}
+                      onChange={(e) => {
+                        setApiKey(e.target.value);
+                        setApiKeyError(false);
+                      }}
+                      placeholder="Enter your API key to run this scraper"
+                      className={`w-full bg-slate-50 dark:bg-slate-800 border ${apiKeyError ? 'border-red-500 animate-shake' : 'border-slate-200 dark:border-slate-700'} rounded-xl px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 transition-all`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    >
+                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    {apiKeyError && <p className="text-red-500 text-[10px] mt-1 font-bold">API Key is required to run the scraper</p>}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <button 
+                    onClick={handleRunScraper}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-1.5 rounded-full font-semibold transition-colors flex items-center gap-2"
+                  >
+                    <Play className="w-4 h-4 fill-current" /> Run Scraper
+                  </button>
+                  <button 
+                    onClick={handleClone}
+                    className="border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 px-5 py-1.5 rounded-full font-semibold transition-colors flex items-center gap-2"
+                  >
+                    <Copy className="w-4 h-4" /> Clone
+                  </button>
+                  <button className="border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 text-slate-500 dark:text-slate-400 px-5 py-1.5 rounded-full font-semibold transition-colors flex items-center gap-2">
+                    <MoreHorizontal className="w-4 h-4" /> More
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -418,9 +510,60 @@ export default function SpiderDetails() {
             <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4">Pricing</h3>
             <div className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-4">{spider.pricing}</div>
             
-            <Link to={`/run/${spider.id}`} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full font-semibold transition-colors flex items-center justify-center gap-2 mb-3">
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">API Key</label>
+                {user && apiKey && apiKey !== user.apiKey && (
+                  <button 
+                    onClick={async () => {
+                      try {
+                        setIsSavingKey(true);
+                        await updateApiKey(apiKey);
+                        toast.success('API Key Saved', {
+                          description: 'Your global API key has been updated successfully.',
+                        });
+                      } catch (error) {
+                        toast.error('Error saving API key');
+                      } finally {
+                        setIsSavingKey(false);
+                      }
+                    }}
+                    disabled={isSavingKey}
+                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    Save
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <input 
+                  id="api-key-input"
+                  type={showApiKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    setApiKeyError(false);
+                  }}
+                  placeholder="Enter your API key"
+                  className={`w-full bg-slate-50 dark:bg-slate-800 border ${apiKeyError ? 'border-red-500 animate-shake' : 'border-slate-200 dark:border-slate-700'} rounded-xl px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 transition-all`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                >
+                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {apiKeyError && <p className="text-red-500 text-[10px] mt-1 font-bold">Please enter your API key to run</p>}
+            </div>
+
+            <button 
+              onClick={handleRunScraper}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full font-semibold transition-colors flex items-center justify-center gap-2 mb-3"
+            >
               <Play className="w-4 h-4 fill-current" /> Run on ScrapersAI
-            </Link>
+            </button>
             
             <button onClick={handleClone} className="w-full border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-full font-semibold transition-colors flex items-center justify-center gap-2 mb-3">
               <Copy className="w-4 h-4" /> Clone Spider
